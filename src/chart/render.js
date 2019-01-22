@@ -13,6 +13,8 @@ const PERSON_DEPARTMENT_CLASS = "org-chart-person-dept";
 const PERSON_REPORTS_CLASS = "org-chart-person-reports";
 
 function render(config) {
+  console.log("rendered");
+
   const {
     svgroot,
     svg,
@@ -40,33 +42,58 @@ function render(config) {
   // const links = tree.links(nodes)
 
   // create a hierarchy from the root
-  const treeRoot = hierarchy(treeData);
-  tree(treeRoot);
+  const treeRoot = hierarchy(treeData, function(d) {
+    return d.children;
+  });
+
+  console.log("treeData =", treeData);
+
+  const newTreeData = tree(treeRoot);
   // nodes
-  const nodes = treeRoot.descendants();
-  // links
-  const links = treeRoot.links();
+  // const nodes = treeRoot.descendants();
+  // // links
+  // const links = treeRoot.links();
+
+  var nodes = newTreeData.descendants(),
+    links = newTreeData.descendants().slice(1);
 
   config.links = links;
   config.nodes = nodes;
 
-  // Normalize for fixed-depth.
-  nodes.forEach(function(d) {
-    d.y = d.depth * lineDepthY;
-  });
+  console.log("nodes", nodes);
+  console.log("links", links);
 
+  // Normalize for fixed-depth.
+  console.log("lineDepthY", lineDepthY);
+  nodes.forEach(function(d) {
+    d.y = (d.depth + 1) * lineDepthY;
+  });
+  console.log("sourceNode = ", sourceNode);
+  console.log("newTreeData", newTreeData);
   // Update the nodes
   const node = svg
     .selectAll("g." + CHART_NODE_CLASS)
-    .data(nodes.filter(d => d.id), d => d.id);
-  const parentNode = sourceNode || treeData;
+    .data(nodes.filter(d => d.data.id), d => d.data.id);
+  console.log(nodes.filter(d => d.data.id));
+  newTreeData.data["x0"] = 0;
+  newTreeData.data["y0"] = 0;
+
+  const parentNode = sourceNode || newTreeData;
+
+  console.log("node", node);
+  console.log("node.x", node.x);
+  console.log("node.y", node.y);
+  console.log("parentNode", parentNode);
 
   // Enter any new nodes at the parent's previous position.
   const nodeEnter = node
     .enter()
     .insert("g")
     .attr("class", CHART_NODE_CLASS)
-    .attr("transform", `translate(${parentNode.x0}, ${parentNode.y0})`)
+    .attr(
+      "transform",
+      `translate(${parentNode.data.x0}, ${parentNode.data.y0})`
+    )
     .on("click", onClick(config));
 
   // Person Card Shadow
@@ -110,7 +137,7 @@ function render(config) {
     .style("cursor", "pointer")
     .style("fill", nameColor)
     .style("font-size", 16)
-    .text(d => d.person.name);
+    .text(d => d.data.person.name);
 
   // Person's Title
   nodeEnter
@@ -122,9 +149,9 @@ function render(config) {
     .style("font-size", 14)
     .style("cursor", "pointer")
     .style("fill", titleColor)
-    .text(d => d.person.title);
+    .text(d => d.data.person.title);
 
-  const heightForTitle = 45; // getHeightForText(d.person.title)
+  const heightForTitle = 45; // getHeightForText(d.data.person.title)
 
   // Person's Reports
   nodeEnter
@@ -147,8 +174,8 @@ function render(config) {
     .attr("x", nodePaddingX)
     .attr("y", nodePaddingY)
     .attr("stroke", borderColor)
-    .attr("src", d => d.person.avatar)
-    .attr("xlink:href", d => d.person.avatar)
+    .attr("src", d => d.data.person.avatar)
+    .attr("xlink:href", d => d.data.person.avatar)
     .attr("clip-path", "url(#avatarClip)");
 
   // Person's Department
@@ -169,7 +196,7 @@ function render(config) {
   const nodeLink = nodeEnter
     .append("a")
     .attr("class", PERSON_LINK_CLASS)
-    .attr("xlink:href", d => d.person.link || "https://lattice.com")
+    .attr("xlink:href", d => d.data.person.link || "https://lattice.com")
     .on("click", datum => {
       d3.event.stopPropagation();
       // TODO: fire link click handler
@@ -204,27 +231,26 @@ function render(config) {
     .remove();
 
   // Update the links
-  const link = svg.selectAll("path.link").data(links, d => d.target.id);
+  const link = svg.selectAll("path.link").data(links, d => d.id);
 
   // Wrap the title texts
   const wrapWidth = 140;
-  console.log(svg);
-  svg
-    .selectAll("text.unedited." + PERSON_TITLE_CLASS)
-    .call(wrapText, wrapWidth);
+
+  svg.selectAll("text.unedited." + PERSON_TITLE_CLASS);
+  //.call(wrapText, wrapWidth);
 
   // Render lines connecting nodes
   renderLines(config);
 
   // Stash the old positions for transition.
   nodes.forEach(function(d) {
-    d.x0 = d.x;
-    d.y0 = d.y;
+    d.data.x0 = d.x;
+    d.data.y0 = d.y;
   });
 }
 
 function getDepartmentClass(d) {
-  const { person } = d;
+  const { person } = d.data;
   const deptClass = person.department ? person.department.toLowerCase() : "";
 
   return [PERSON_DEPARTMENT_CLASS, deptClass].join(" ");
