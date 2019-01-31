@@ -1,259 +1,416 @@
-import { hierarchy, tree as newTree } from "d3-hierarchy";
+import { hierarchy, tree as newTree } from 'd3-hierarchy';
+import * as d3 from 'd3';
+import 'd3-selection-multi';
+const renderLines = require('./render-lines');
+const onClick = require('./on-click');
+const iconLink = require('./components/icon-link');
+const { wrapText, helpers } = require('../utils');
 
-const { wrapText, helpers } = require("../utils");
-const renderLines = require("./render-lines");
-const onClick = require("./on-click");
-const iconLink = require("./components/icon-link");
+const CHART_NODE_CLASS = 'org-chart-node';
+const PERSON_LINK_CLASS = 'org-chart-person-link';
+const PERSON_NAME_CLASS = 'org-chart-person-name';
+const PERSON_TITLE_CLASS = 'org-chart-person-title';
+const PERSON_DEPARTMENT_CLASS = 'org-chart-person-dept';
+const PERSON_REPORTS_CLASS = 'org-chart-person-reports';
 
-const CHART_NODE_CLASS = "org-chart-node";
-const PERSON_LINK_CLASS = "org-chart-person-link";
-const PERSON_NAME_CLASS = "org-chart-person-name";
-const PERSON_TITLE_CLASS = "org-chart-person-title";
-const PERSON_DEPARTMENT_CLASS = "org-chart-person-dept";
-const PERSON_REPORTS_CLASS = "org-chart-person-reports";
+let idCounter = 0;
 
-function render(config) {
-  console.log("rendered");
-
+const render = (source) => (config) => {
+  console.log('rendered');
+  console.log('source = ', source);
+  console.log('render config =', config);
   const {
-    svgroot,
-    svg,
-    tree,
     animationDuration,
+    animationDurationClose,
+    folderColor,
+    id,
+    lineType,
+    mainGLocal,
+    margin,
     nodeWidth,
     nodeHeight,
+    nodeSpacing,
+    onDrop,
+    rootLocal,
+    shouldResize,
+    treeMapLocal,
+    backgroundColor,
+    borderColor,
+    nodeBorderRadius,
     nodePaddingX,
     nodePaddingY,
-    nodeBorderRadius,
-    backgroundColor,
+    avatarWidth,
     nameColor,
     titleColor,
-    reportsColor,
-    borderColor,
-    avatarWidth,
-    lineDepthY,
-    treeData,
-    sourceNode,
-    onPersonLinkClick
+    reportsColor
   } = config;
 
+  const treeData = treeMapLocal(rootLocal);
+  console.log('treeData = ', treeData);
+  // if (treeData.data.children.length > 0) {
+  console.log('inside if');
   // Compute the new tree layout.
-  // const nodes = tree.nodes(treeData).reverse()
-  // const links = tree.links(nodes)
-
-  // create a hierarchy from the root
-  const treeRoot = hierarchy(treeData, function(d) {
-    return d.children;
-  });
-
-  console.log("treeData =", treeData);
-
-  const newTreeData = tree(treeRoot);
-  // nodes
-  // const nodes = treeRoot.descendants();
-  // // links
-  // const links = treeRoot.links();
-
-  var nodes = newTreeData.descendants(),
-    links = newTreeData.descendants().slice(1);
-
-  config.links = links;
-  config.nodes = nodes;
-
-  console.log("nodes", nodes);
-  console.log("links", links);
-
+  let nodes = treeData.descendants(),
+    links = treeData.descendants().slice(1);
+  console.log('nodes =', nodes);
   // Normalize for fixed-depth.
-  console.log("lineDepthY", lineDepthY);
   nodes.forEach(function(d) {
-    d.y = (d.depth + 1) * lineDepthY;
+    d.y = d.depth * (nodeHeight * 1.75);
   });
-  console.log("sourceNode = ", sourceNode);
-  console.log("newTreeData", newTreeData);
-  // Update the nodes
-  const node = svg
-    .selectAll("g." + CHART_NODE_CLASS)
-    .data(nodes.filter(d => d.data.id), d => d.data.id);
-  console.log(nodes.filter(d => d.data.id));
-  newTreeData.data["x0"] = 0;
-  newTreeData.data["y0"] = 0;
 
-  const parentNode = sourceNode || newTreeData;
+  // ****************** Nodes section ***************************
 
-  console.log("node", node);
-  console.log("node.x", node.x);
-  console.log("node.y", node.y);
-  console.log("parentNode", parentNode);
+  // Update the nodes...
+  const node = mainGLocal
+    .selectAll(`g.${CHART_NODE_CLASS}`)
+    .data(nodes, function(d) {
+      return d.id || (d.id = ++idCounter);
+    });
 
-  // Enter any new nodes at the parent's previous position.
+  // Enter any new modes at the parent's previous position.
   const nodeEnter = node
     .enter()
-    .insert("g")
-    .attr("class", CHART_NODE_CLASS)
-    .attr(
-      "transform",
-      `translate(${parentNode.data.x0}, ${parentNode.data.y0})`
-    )
-    .on("click", onClick(config));
+    .append('g')
+    .attr('class', CHART_NODE_CLASS)
+    .attr('transform', function(d) {
+      return 'translate(' + source.x + ',' + source.y + ')';
+    })
+    .on('click', click)
+    .on('mouseover', (d) => {
+      console.log('hovering on = ', d);
+      onDrop(d.data.id);
+    });
 
-  // Person Card Shadow
+  // add folder polygon for the nodes
   nodeEnter
-    .append("rect")
-    .attr("width", nodeWidth)
-    .attr("height", nodeHeight)
-    .attr("fill", backgroundColor)
-    .attr("stroke", borderColor)
-    .attr("rx", nodeBorderRadius)
-    .attr("ry", nodeBorderRadius)
-    .attr("fill-opacity", 0.05)
-    .attr("stroke-opacity", 0.025)
-    .attr("filter", "url(#boxShadow)");
+    .append('polygon')
+    .attrs({
+      width: nodeWidth,
+      height: nodeHeight,
+      fill: folderColor,
+      stroke: borderColor,
+      'fill-opacity': 1,
+      'stroke-opacity': 1,
+      points:
+        '110.000 50.000, 240.000 50.000, 240.000 220.000, 0.000 220.000, 0.000 20.000, 80.000 20.000, 110.000 50.000',
+      transform: 'scale(.6, .6)'
+    })
+    .style('cursor', 'pointer');
 
-  // Person Card Container
-  nodeEnter
-    .append("rect")
-    .attr("width", nodeWidth)
-    .attr("height", nodeHeight)
-    .attr("id", d => d.id)
-    .attr("fill", backgroundColor)
-    .attr("stroke", borderColor)
-    .attr("rx", nodeBorderRadius)
-    .attr("ry", nodeBorderRadius)
-    .style("cursor", helpers.getCursorForNode)
-    .attr("class", "box");
-
+  // Add labels for the nodes
   const namePos = {
-    x: nodePaddingX * 1.4 + avatarWidth,
-    y: nodePaddingY * 1.8
+    x: nodePaddingX / 2,
+    y: nodePaddingY * 2 + avatarWidth
   };
-
+  console.log(node);
   // Person's Name
+
   nodeEnter
-    .append("text")
-    .attr("class", PERSON_NAME_CLASS)
-    .attr("x", namePos.x)
-    .attr("y", namePos.y)
-    .attr("dy", ".3em")
-    .style("cursor", "pointer")
-    .style("fill", nameColor)
-    .style("font-size", 16)
-    .text(d => d.data.person.name);
+    .append('text')
+    .attrs({
+      class: PERSON_NAME_CLASS,
+      textLength: '100px',
+      x: namePos.x,
+      y: namePos.y,
+      dy: '.3em'
+    })
+    .styles({ cursor: 'pointer', fill: nameColor, 'font-size': 14 })
+    .text((d) => d.data.folder.name);
 
   // Person's Title
   nodeEnter
-    .append("text")
-    .attr("class", PERSON_TITLE_CLASS + " unedited")
-    .attr("x", namePos.x)
-    .attr("y", namePos.y + nodePaddingY * 1.2)
-    .attr("dy", "0.1em")
-    .style("font-size", 14)
-    .style("cursor", "pointer")
-    .style("fill", titleColor)
-    .text(d => d.data.person.title);
+    .append('text')
+    .attrs({
+      class: PERSON_TITLE_CLASS + ' unedited',
+      x: namePos.x,
+      y: namePos.y + nodePaddingY,
+      dy: '0.1em',
+      textLength: nodeWidth - nodePaddingX * 4
+    })
+    .styles({ 'font-size': 12, cursor: 'pointer', fill: titleColor })
+    .text((d) => d.data.folder.title);
 
-  const heightForTitle = 45; // getHeightForText(d.data.person.title)
+  const heightForTitle = 45; // getHeightForText(d.data.folder.title)
 
   // Person's Reports
   nodeEnter
-    .append("text")
-    .attr("class", PERSON_REPORTS_CLASS)
-    .attr("x", namePos.x)
-    .attr("y", namePos.y + nodePaddingY + heightForTitle)
-    .attr("dy", ".9em")
-    .style("font-size", 14)
-    .style("font-weight", 500)
-    .style("cursor", "pointer")
-    .style("fill", reportsColor)
+    .append('text')
+    .attrs({
+      class: PERSON_REPORTS_CLASS,
+      x: namePos.x,
+      y: namePos.y + nodePaddingY + heightForTitle,
+      dy: '.9em'
+    })
+    .styles({
+      'font-size': 14,
+      'font-weight': 500,
+      cursor: 'pointer',
+      fill: reportsColor
+    })
     .text(helpers.getTextForTitle);
 
   // Person's Avatar
   nodeEnter
-    .append("image")
-    .attr("width", avatarWidth)
-    .attr("height", avatarWidth)
-    .attr("x", nodePaddingX)
-    .attr("y", nodePaddingY)
-    .attr("stroke", borderColor)
-    .attr("src", d => d.data.person.avatar)
-    .attr("xlink:href", d => d.data.person.avatar)
-    .attr("clip-path", "url(#avatarClip)");
+    .append('image')
+    .attrs({
+      width: avatarWidth,
+      height: avatarWidth,
+      x: nodePaddingX / 2.2,
+      y: nodePaddingY,
+      stroke: borderColor,
+      src: (d) => d.data.folder.avatar,
+      'xlink:href': (d) => d.data.folder.avatar,
+      'clip-path': 'url(#avatarClip)'
+    })
+    .style('cursor', 'pointer');
 
   // Person's Department
   nodeEnter
-    .append("text")
-    .attr("class", getDepartmentClass)
-    .attr("x", 34)
-    .attr("y", avatarWidth + nodePaddingY * 1.2)
-    .attr("dy", ".9em")
-    .style("cursor", "pointer")
-    .style("fill", titleColor)
-    .style("font-weight", 600)
-    .style("font-size", 8)
-    .attr("text-anchor", "middle")
+    .append('text')
+    .attrs({
+      class: getDepartmentClass,
+      x: 34,
+      y: avatarWidth + nodePaddingY * 1.2,
+      dy: '.9em',
+      'text-anchor': 'middle'
+    })
+    .styles({
+      cursor: 'pointer',
+      fill: titleColor,
+      'font-weight': 600,
+      'font-size': 8
+    })
     .text(helpers.getTextForDepartment);
 
-  // Person's Link
-  const nodeLink = nodeEnter
-    .append("a")
-    .attr("class", PERSON_LINK_CLASS)
-    .attr("xlink:href", d => d.data.person.link || "https://lattice.com")
-    .on("click", datum => {
-      d3.event.stopPropagation();
-      // TODO: fire link click handler
-      if (onPersonLinkClick) {
-        onPersonLinkClick(datum, d3.event);
-      }
-    });
+  // UPDATE
+  const nodeUpdate = nodeEnter.merge(node);
 
-  iconLink({
-    svg: nodeLink,
-    x: nodeWidth - 28,
-    y: nodeHeight - 28
-  });
-
-  // Transition nodes to their new position.
-  const nodeUpdate = node
+  // Transition to the proper position for the node
+  nodeUpdate
     .transition()
     .duration(animationDuration)
-    .attr("transform", d => `translate(${d.x},${d.y})`);
+    .attr('transform', function(d) {
+      return 'translate(' + d.x + ',' + d.y + ')';
+    });
 
+  // Update the node attributes and style
   nodeUpdate
-    .select("rect.box")
-    .attr("fill", backgroundColor)
-    .attr("stroke", borderColor);
+    .select(CHART_NODE_CLASS)
+    .attr('r', 10)
+    .styles({
+      fill(d) {
+        return d._children ? 'lightsteelblue' : '#fff';
+      },
+      cursor: 'pointer'
+    });
 
-  // Transition exiting nodes to the parent's new position.
+  // Remove any exiting nodes
   const nodeExit = node
     .exit()
     .transition()
-    .duration(animationDuration)
-    .attr("transform", d => `translate(${parentNode.x},${parentNode.y})`)
+    .duration(parseInt(animationDurationClose))
+    .attr('transform', function(d) {
+      return 'translate(' + source.x + ',' + source.y + ')';
+    })
     .remove();
 
-  // Update the links
-  const link = svg.selectAll("path.link").data(links, d => d.id);
+  // On exit reduce the node circles size to 0
+  nodeExit.select(CHART_NODE_CLASS).attr('transform', 'scale(0,0)');
 
-  // Wrap the title texts
-  const wrapWidth = 140;
+  // On exit reduce the opacity of text labels
+  nodeExit.select('text').style('fill-opacity', 1e-6);
 
-  svg.selectAll("text.unedited." + PERSON_TITLE_CLASS);
-  //.call(wrapText, wrapWidth);
+  const angle = d3
+    .line()
+    .x((d) => d.x)
+    .y((d) => d.y)
+    .curve(d3.curveLinear);
 
-  // Render lines connecting nodes
-  renderLines(config);
+  const link = mainGLocal
+    .selectAll('path.link')
+    .data(links.filter((link) => link.data.id), (d) => d.id);
 
-  // Stash the old positions for transition.
+  if (lineType === 'angle') {
+    // Enter any new links at the parent's previous position.
+    link
+      .enter()
+      .insert('path', 'g')
+      .attrs({
+        class: 'link',
+        fill: 'none',
+        stroke: borderColor,
+        'stroke-opacity': 0.9,
+        'stroke-width': 1.25,
+        d: (d) => {
+          const linePoints = [
+            {
+              x: d.parent.x + parseInt(nodeWidth / 2),
+              y: d.parent.y + nodeHeight * 1.5
+            },
+            {
+              x: d.parent.x + parseInt(nodeWidth / 2),
+              y: d.y - margin.top / 2
+            },
+            {
+              x: d.x + parseInt(nodeWidth / 2),
+              y: d.y - margin.top / 2
+            },
+            {
+              x: d.x + parseInt(nodeWidth / 2),
+              y: d.y + margin.top / 1.8
+            }
+          ];
+          console.log('first link angle =', angle(linePoints));
+          return angle(linePoints);
+        }
+      });
+
+    // Transition links to their new position.
+
+    link
+      .transition()
+      .duration(animationDuration)
+      .attr('d', (d) => {
+        const linePoints = [
+          {
+            x: d.parent.x + parseInt(nodeWidth / 2),
+            y: d.parent.y + nodeHeight * 1.5
+          },
+          {
+            x: d.parent.x + parseInt(nodeWidth / 2),
+            y: d.y - margin.top / 2
+          },
+          {
+            x: d.x + parseInt(nodeWidth / 2),
+            y: d.y - margin.top / 2
+          },
+          {
+            x: d.x + parseInt(nodeWidth / 2),
+            y: d.y + margin.top / 1.8
+          }
+        ];
+
+        return angle(linePoints);
+      });
+
+    // Animate the existing links to the parent's new position
+
+    link
+      .exit()
+      .transition()
+      .duration(parseInt(animationDurationClose))
+      .attr('d', (d) => {
+        const linePoints = [
+          {
+            x: source.x + parseInt(nodeWidth / 2),
+            y: source.y + nodeHeight + 2
+          },
+          {
+            x: source.x + parseInt(nodeWidth / 2),
+            y: source.y + nodeHeight + 2
+          },
+          {
+            x: source.x + parseInt(nodeWidth / 2),
+            y: source.y + nodeHeight + 2
+          },
+          {
+            x: source.x + parseInt(nodeWidth / 2),
+            y: source.y + nodeHeight + 2
+          }
+        ];
+
+        return angle(linePoints);
+      })
+      .on('end', () => {
+        // this is leftover from transforming the code from v3 of d3
+        // config.callerNode = null;
+        // could be
+        // source = null? or d?  doesn't seem neccesary to do that here
+      });
+  } else if (lineType === 'curve') {
+    link
+      .enter()
+      .insert('path', 'g')
+      .attrs({
+        class: 'link',
+        stroke: borderColor,
+        fill: 'none',
+        x: nodeWidth / 2,
+        y: nodeHeight / 2,
+        d: (d) => {
+          const source = {
+            x: parentNode.x0,
+            y: parentNode.y0
+          };
+
+          return curve({
+            source,
+            target: source
+          });
+        }
+      });
+
+    // Transition links to their new position.
+    link
+      .transition()
+      .duration(animationDuration)
+      .attr('d', curve);
+
+    // Transition exiting nodes to the parent's new position.
+    link
+      .exit()
+      .transition()
+      .duration(parseInt(animationDurationClose))
+      .attr('d', function(d) {
+        const source = {
+          x: parentNode.x,
+          y: parentNode.y
+        };
+        return curve({
+          source,
+          target: source
+        });
+      })
+      .remove();
+  }
+
+  // Store the old positions for transition.
   nodes.forEach(function(d) {
-    d.data.x0 = d.x;
-    d.data.y0 = d.y;
+    d.x0 = d.x;
+    d.y0 = d.y;
   });
-}
+
+  // Creates a curved (diagonal) path from parent to the child nodes
+  function diagonal(s, d) {
+    const path = `M ${s.y} ${s.x}
+              C ${(s.y + d.y) / 2} ${s.x},
+                ${(s.y + d.y) / 2} ${d.x},
+                ${d.y} ${d.x}`;
+
+    return path;
+  }
+
+  // Toggle children on click.
+  function click(d) {
+    if (d.children) {
+      d._children = d.children;
+      d.children = null;
+    } else {
+      d.children = d._children;
+      d._children = null;
+    }
+    if (d.children || d._children) {
+      render(d)(config);
+    }
+  }
+  // }
+};
 
 function getDepartmentClass(d) {
-  const { person } = d.data;
-  const deptClass = person.department ? person.department.toLowerCase() : "";
+  const { folder } = d.data;
+  const deptClass = folder.department ? folder.department.toLowerCase() : '';
 
-  return [PERSON_DEPARTMENT_CLASS, deptClass].join(" ");
+  return [PERSON_DEPARTMENT_CLASS, deptClass].join(' ');
 }
 
-module.exports = render;
+export default render;

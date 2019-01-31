@@ -1,8 +1,9 @@
 {
-  "name": "@latticehr/react-org-chart",
+  "name": "react-org-chart",
   "version": "0.1.1",
   "description": "Simple, high-performance react component for d3 org chart",
-  "repository": "https://github.com/latticehr/react-org-chart.git",
+  "repository": "https://github.com/chrisdraws/react-org-chart.git",
+  "origRepository": "https://github.com/latticehr/react-org-chart.git",
   "main": "dist/index.js",
   "directories": {
     "example": "src/examples"
@@ -37,7 +38,7 @@
     "webpack-dev-server": "^3.1.0"
   },
   "peerDependencies": {
-    "d3": ">= 3.x < 4",
+    "d3": ">= 5.7.x",
     "react": ">= 15.x",
     "react-dom": ">= 15.x"
   },
@@ -48,6 +49,7 @@
     ]
   },
   "dependencies": {
-    "d3": "^5.7.0"
+    "d3": "^5.7.0",
+    "d3-selection-multi": "^1.0.1"
   }
 }

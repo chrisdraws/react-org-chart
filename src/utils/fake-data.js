@@ -1,52 +1,52 @@
-const faker = require('faker')
+const faker = require('faker');
 
 module.exports = function fakeData() {
-  let count = 0
+  let count = 0;
 
   const genData = ({ depth = 0, department = '' }) => {
-    ++count
+    ++count;
 
-    const id = fakeId()
-    const person = getPerson(id, { depth, department })
+    const id = fakeId();
+    const folder = getFolder(id, { depth, department });
 
     if (depth > 6 || count >= 20000) {
-      return { id, person, hasChild: false }
+      return { id, folder, hasChild: false };
     }
 
     const { children, totalReports } = getChildren(
-      { depth: depth + 1, department: department || person.department },
+      { depth: depth + 1, department: department || folder.department },
       genData
-    )
+    );
 
-    person.totalReports = totalReports
+    folder.totalReports = totalReports;
 
     return {
       id,
-      person,
+      folder,
       hasChild: true,
       children
-    }
-  }
+    };
+  };
 
-  const data = genData({})
+  const data = genData({});
 
-  console.log('total nodes', count)
+  console.log('total nodes', count);
 
-  return data
-}
+  return data;
+};
 
 function fakeId() {
-  return Math.floor(Math.random() * 300000)
+  return Math.floor(Math.random() * 300000);
 }
 
-function getPerson(id, { depth, department }) {
+function getFolder(id, { depth, department }) {
   return {
     id,
     avatar: faker.image.avatar(), // 'https://github.com/fouad.png',
     name: faker.name.firstName() + ' ' + faker.name.lastName(),
     title: depth > 0 ? faker.name.jobTitle() : 'CEO',
     department: depth > 0 ? department || getDept() : ''
-  }
+  };
 }
 
 const depts = [
@@ -56,25 +56,25 @@ const depts = [
   'Marketing',
   'HR',
   'Design'
-]
+];
 
 function getDept() {
-  const randIndex = Math.floor(depts.length * Math.random())
+  const randIndex = Math.floor(depts.length * Math.random());
 
-  return depts[randIndex]
+  return depts[randIndex];
 }
 
 function getChildren({ depth, department }, genData) {
-  const length = Math.ceil(Math.random() * 6) + (4 - depth)
+  const length = Math.ceil(Math.random() * 6) + (4 - depth);
 
   if (length < 0) {
-    return { totalReports: 0, children: [] }
+    return { totalReports: 0, children: [] };
   }
 
   return {
     totalReports: length,
-    children: Array.apply(null, { length }).map(_ =>
+    children: Array.apply(null, { length }).map((_) =>
       genData({ depth: depth + 1, department })
     )
-  }
+  };
 }
