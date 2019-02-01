@@ -11,10 +11,6 @@ const renderUpdate = (holder, zoomer, widths) => {
     nodeWidth
   } = widths;
 
-  // let zoomDoneOnce = false,
-  //   offset,
-  //   currentScale;
-  // console.log(widths);
   const zoom = d3
     .zoom()
     .scaleExtent([0.05, 2])
@@ -23,7 +19,6 @@ const renderUpdate = (holder, zoomer, widths) => {
   function zoomed() {
     zoomer.attr('transform', d3.event.transform);
     const zoomerPos = parseSvg(zoomer.attr('transform'));
-    console.log(zoomerPos);
   }
 
   const rectangle = holder

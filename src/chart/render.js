@@ -45,6 +45,8 @@ const render = (source) => (config) => {
     reportsColor
   } = config;
 
+  console.log(treeMapLocal);
+
   const treeData = treeMapLocal(rootLocal);
   console.log('treeData = ', treeData);
   // if (treeData.data.children.length > 0) {
@@ -72,9 +74,7 @@ const render = (source) => (config) => {
     .enter()
     .append('g')
     .attr('class', CHART_NODE_CLASS)
-    .attr('transform', function(d) {
-      return 'translate(' + source.x + ',' + source.y + ')';
-    })
+    .attr('transform', `translate(${source.x},${source.y})`)
     .on('click', click)
     .on('mouseover', (d) => {
       console.log('hovering on = ', d);
@@ -190,7 +190,7 @@ const render = (source) => (config) => {
     .transition()
     .duration(animationDuration)
     .attr('transform', function(d) {
-      return 'translate(' + d.x + ',' + d.y + ')';
+      return `translate(${d.x},${d.y})`;
     });
 
   // Update the node attributes and style
@@ -209,9 +209,7 @@ const render = (source) => (config) => {
     .exit()
     .transition()
     .duration(parseInt(animationDurationClose))
-    .attr('transform', function(d) {
-      return 'translate(' + source.x + ',' + source.y + ')';
-    })
+    .attr('transform', `translate(${source.x},${source.y})`)
     .remove();
 
   // On exit reduce the node circles size to 0

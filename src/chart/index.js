@@ -208,6 +208,12 @@ export const init = (options) => {
     .tree()
     .nodeSize([nodeWidth + nodeSpacing, nodeHeight + nodeSpacing]);
 
+  treeMap.separation(function separation(a, b) {
+    console.log('separation');
+    console.log(a);
+    console.log(b);
+    return 1.25;
+  });
   // Assigns parent, children, height, depth
   const root = d3.hierarchy(treeData, function(d) {
     console.log(d);
